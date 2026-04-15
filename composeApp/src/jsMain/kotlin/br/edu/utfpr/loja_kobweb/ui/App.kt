@@ -205,32 +205,6 @@ private fun TopBar(
     }
 }
 
-//@Composable
-//private fun HeroSection(onOpenCart: () -> Unit) {
-//    Card(
-//        modifier = Modifier.fillMaxWidth(),
-//        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
-//    ) {
-//        Column(
-//            modifier = Modifier.padding(28.dp),
-//            verticalArrangement = Arrangement.spacedBy(16.dp)
-//        ) {
-//            Text(
-//                "Monte seu pedido em minutos",
-//                style = MaterialTheme.typography.displaySmall,
-//                fontWeight = FontWeight.Black
-//            )
-//            Text(
-//                "Explore o catalogo completo, aplique filtros por categoria e preco e finalize com boleto, pix ou cartao de credito.",
-//                style = MaterialTheme.typography.bodyLarge
-//            )
-//            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-//                Button(onClick = onOpenCart) { Text("Abrir carrinho") }
-//            }
-//        }
-//    }
-//}
-
 @Composable
 private fun StatsRow() {
     Row(
