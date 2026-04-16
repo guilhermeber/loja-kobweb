@@ -90,9 +90,6 @@ fun App() {
                         .padding(top = 72.dp),
                     verticalArrangement = Arrangement.spacedBy(20.dp)
                 ) {
-//                    item {
-//                        HeroSection(onOpenCart = { showCart = true })
-//                    }
                     item {
                         StatsRow()
                     }
@@ -156,6 +153,7 @@ fun App() {
                             listState.animateScrollToItem(contentItemCount - 1)
                         }
                     },
+                    onGoToRestictedProductsMenu = { showRestrictedProductsMenu = true },
                     onOpenCart = { showCart = true }
                 )
 
@@ -174,6 +172,7 @@ private fun TopBar(
     onGoToProducts: () -> Unit,
     onGoToPurchases: () -> Unit,
     onOpenCart: () -> Unit,
+    onGoToRestictedProductsMenu: () -> Unit,
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
@@ -192,6 +191,10 @@ private fun TopBar(
 
             Button(onClick = onGoToProducts) {
                 Text("Produtos")
+            }
+
+            Button(onClick = onGoToRestictedProductsMenu) {
+                Text("Cadastrar Produtos")
             }
 
             Button(onClick = onGoToPurchases) {
