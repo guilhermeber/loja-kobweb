@@ -36,8 +36,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import br.edu.utfpr.loja_kobweb.components.CartItem
 import br.edu.utfpr.loja_kobweb.components.ProductItem
+import br.edu.utfpr.loja_kobweb.dao.CartDao
+import br.edu.utfpr.loja_kobweb.dao.ProductDao
+import br.edu.utfpr.loja_kobweb.dao.PurchaseDao
 import br.edu.utfpr.loja_kobweb.model.Purchase
-import br.edu.utfpr.loja_kobweb.store.Store
 import kotlinx.coroutines.launch
 
 private enum class PaymentMethod(val label: String) {
@@ -53,18 +55,19 @@ fun App() {
         val coroutineScope = rememberCoroutineScope()
 
         var showCart by remember { mutableStateOf(false) }
+        var showRestrictedProductsMenu by remember { mutableStateOf(false) }
         var searchText by remember { mutableStateOf("") }
         var selectedCategory by remember { mutableStateOf("Todas") }
         var onlyInStock by remember { mutableStateOf(false) }
 
-        val maxCatalogPrice = (Store.products.maxOfOrNull { it.price } ?: 0.0).coerceAtLeast(1.0)
+        val maxCatalogPrice = (ProductDao.products.maxOfOrNull { it.price } ?: 0.0).coerceAtLeast(1.0)
         var selectedMaxPrice by remember(maxCatalogPrice) { mutableStateOf(maxCatalogPrice) }
 
-        val categories = remember(Store.products.size) {
-            listOf("Todas") + Store.products.map { it.category }.distinct().sorted()
+        val categories = remember(ProductDao.products.size) {
+            listOf("Todas") + ProductDao.products.map { it.category }.distinct().sorted()
         }
 
-        val filteredProducts = Store.products.filter { product ->
+        val filteredProducts = ProductDao.products.filter { product ->
             val categoryMatches = selectedCategory == "Todas" || product.category == selectedCategory
             val nameMatches = product.name.contains(searchText.trim(), ignoreCase = true)
             val priceMatches = product.price <= selectedMaxPrice
@@ -74,7 +77,7 @@ fun App() {
 
         val contentItemCount = 4 +
             if (filteredProducts.isEmpty()) 1 else filteredProducts.size +
-            if (Store.purchases.isEmpty()) 1 else minOf(5, Store.purchases.size)
+            if (PurchaseDao.purchases.isEmpty()) 1 else minOf(5, PurchaseDao.purchases.size)
 
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             Box(
@@ -119,7 +122,7 @@ fun App() {
                         items(filteredProducts, key = { it.id }) { product ->
                             ProductItem(
                                 product = product,
-                                onAddToCart = { Store.addToCart(product) }
+                                onAddToCart = { CartDao.addToCart(product) }
                             )
                         }
                     }
@@ -127,10 +130,10 @@ fun App() {
                     item {
                         SectionTitle("Compras recentes")
                     }
-                    if (Store.purchases.isEmpty()) {
+                    if (PurchaseDao.purchases.isEmpty()) {
                         item { EmptyStateCard("Nenhuma compra finalizada ainda.") }
                     } else {
-                        items(Store.purchases.takeLast(5).reversed(), key = { it.id }) { purchase ->
+                        items(PurchaseDao.purchases.takeLast(5).reversed(), key = { it.id }) { purchase ->
                             PurchaseRow(purchase)
                         }
                     }
@@ -156,6 +159,10 @@ fun App() {
                     onGoToRestictedProductsMenu = { showRestrictedProductsMenu = true },
                     onOpenCart = { showCart = true }
                 )
+
+                if (showRestrictedProductsMenu) {
+                    ProductRegistrationDialog(onDismiss = { showRestrictedProductsMenu = false })
+                }
 
                 if (showCart) {
                     CartDialog(onDismiss = { showCart = false })
@@ -202,7 +209,7 @@ private fun TopBar(
             }
 
             Button(onClick = onOpenCart) {
-                Text("Carrinho (${Store.cart.size})")
+                Text("Carrinho (${CartDao.cart.size})")
             }
         }
     }
@@ -214,9 +221,9 @@ private fun StatsRow() {
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally)
     ) {
-        StatCard(label = "Produtos", value = Store.products.size.toString())
-        StatCard(label = "Itens no carrinho", value = Store.cart.size.toString())
-        StatCard(label = "Estoque total", value = Store.products.sumOf { it.stock }.toString())
+        StatCard(label = "Produtos", value = ProductDao.products.size.toString())
+        StatCard(label = "Itens no carrinho", value = CartDao.cart.size.toString())
+        StatCard(label = "Estoque total", value = ProductDao.products.sumOf { it.stock }.toString())
     }
 }
 
@@ -320,14 +327,14 @@ private fun CartDialog(onDismiss: () -> Unit) {
                     onDismiss = onDismiss
                 )
 
-                if (Store.cartLines().isEmpty()) {
+                if (CartDao.cartLines().isEmpty()) {
                     EmptyStateCard("Seu carrinho esta vazio.")
                 } else {
                     LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.heightIn(max = 260.dp)) {
-                        items(Store.cartLines(), key = { it.product.id }) { line ->
+                        items(CartDao.cartLines(), key = { it.product.id }) { line ->
                             CartItem(
                                 line = line,
-                                onRemove = { Store.removeFromCart(line.product) }
+                                onRemove = { CartDao.removeFromCart(line.product) }
                             )
                         }
                     }
@@ -337,7 +344,7 @@ private fun CartDialog(onDismiss: () -> Unit) {
 
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text("Total", style = MaterialTheme.typography.titleMedium)
-                    Text(Store.cartTotal().formatMoney(), fontWeight = FontWeight.Bold)
+                    Text(CartDao.cartTotal().formatMoney(), fontWeight = FontWeight.Bold)
                 }
 
                 Text("Forma de pagamento", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -353,9 +360,9 @@ private fun CartDialog(onDismiss: () -> Unit) {
 
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Button(
-                        enabled = Store.cartLines().isNotEmpty(),
+                        enabled = CartDao.cartLines().isNotEmpty(),
                         onClick = {
-                            val purchase = Store.checkout(selectedPayment.label)
+                            val purchase = PurchaseDao.checkout(selectedPayment.label)
                             feedback = purchase?.let {
                                 "Compra finalizada via ${it.paymentMethod}: ${it.summary}"
                             } ?: "Carrinho vazio ou estoque insuficiente."
@@ -365,9 +372,9 @@ private fun CartDialog(onDismiss: () -> Unit) {
                     }
 
                     TextButton(
-                        enabled = Store.cart.isNotEmpty(),
+                        enabled = CartDao.cart.isNotEmpty(),
                         onClick = {
-                            Store.clearCart()
+                            CartDao.clearCart()
                             feedback = "Carrinho limpo."
                         }
                     ) {
@@ -380,15 +387,122 @@ private fun CartDialog(onDismiss: () -> Unit) {
                 HorizontalDivider()
 
                 Text("Compras salvas", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                if (Store.purchases.isEmpty()) {
+                if (PurchaseDao.purchases.isEmpty()) {
                     EmptyStateCard("Nenhuma compra finalizada ainda.")
                 } else {
                     LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.heightIn(max = 180.dp)) {
-                        items(Store.purchases.reversed(), key = { it.id }) { purchase ->
+                        items(PurchaseDao.purchases.reversed(), key = { it.id }) { purchase ->
                             PurchaseRow(purchase)
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProductRegistrationDialog(onDismiss: () -> Unit) {
+    var name by remember { mutableStateOf("") }
+    var category by remember { mutableStateOf("") }
+    var priceText by remember { mutableStateOf("") }
+    var stockText by remember { mutableStateOf("") }
+    var feedback by remember { mutableStateOf<String?>(null) }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
+            tonalElevation = 8.dp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .widthIn(max = 980.dp)
+        ) {
+            Column(modifier = Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                ModalHeader(
+                    title = "Cadastrar produto",
+                    subtitle = "Preencha os campos para adicionar um novo produto ao catalogo.",
+                    onDismiss = onDismiss
+                )
+
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Nome") },
+                    singleLine = true
+                )
+
+                OutlinedTextField(
+                    value = category,
+                    onValueChange = { category = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Categoria") },
+                    singleLine = true
+                )
+
+                OutlinedTextField(
+                    value = priceText,
+                    onValueChange = { priceText = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Preco") },
+                    singleLine = true
+                )
+
+                OutlinedTextField(
+                    value = stockText,
+                    onValueChange = { stockText = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Estoque") },
+                    singleLine = true
+                )
+
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Button(
+                        onClick = {
+                            val normalizedPrice = priceText.replace(',', '.')
+                            val price = normalizedPrice.toDoubleOrNull()
+                            val stock = stockText.toIntOrNull()
+
+                            if (price == null || stock == null) {
+                                feedback = "Preco e estoque devem ser numericos."
+                                return@Button
+                            }
+
+                            val product = ProductDao.addProduct(
+                                name = name,
+                                category = category,
+                                price = price,
+                                stock = stock
+                            )
+
+                            feedback = if (product != null) {
+                                name = ""
+                                category = ""
+                                priceText = ""
+                                stockText = ""
+                                "Produto cadastrado com sucesso."
+                            } else {
+                                "Preencha os campos corretamente. Preco > 0 e estoque >= 0."
+                            }
+                        }
+                    ) {
+                        Text("Cadastrar")
+                    }
+
+                    TextButton(
+                        onClick = {
+                            name = ""
+                            category = ""
+                            priceText = ""
+                            stockText = ""
+                            feedback = null
+                        }
+                    ) {
+                        Text("Limpar")
+                    }
+                }
+
+                feedback?.let { Text(it) }
             }
         }
     }

@@ -95,6 +95,30 @@ object Store {
         persist()
     }
 
+    fun addProduct(name: String, category: String, price: Double, stock: Int): Product? {
+        val sanitizedName = name.trim()
+        val sanitizedCategory = category.trim()
+
+        if (sanitizedName.isBlank() || sanitizedCategory.isBlank()) {
+            return null
+        }
+        if (price <= 0.0 || stock < 0) {
+            return null
+        }
+
+        val newProduct = Product(
+            id = nextId++,
+            name = sanitizedName,
+            category = sanitizedCategory,
+            price = price,
+            stock = stock
+        )
+
+        products.add(newProduct)
+        persist()
+        return newProduct
+    }
+
     fun cartLines(): List<CartLine> {
         return cart
             .groupBy { it.id }
