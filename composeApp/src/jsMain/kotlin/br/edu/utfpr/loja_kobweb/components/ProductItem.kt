@@ -19,7 +19,8 @@ import br.edu.utfpr.loja_kobweb.model.Product
 @Composable
 fun ProductItem(
     product: Product,
-    onAddToCart: () -> Unit
+    onAddToCart: () -> Unit,
+    onViewDetails: (() -> Unit)? = null
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -41,8 +42,16 @@ fun ProductItem(
                 Text("Estoque: ${product.stock}", style = MaterialTheme.typography.bodySmall)
             }
 
-            Button(onClick = onAddToCart, enabled = product.stock > 0) {
-                Text(if (product.stock > 0) "Adicionar" else "Sem estoque")
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = onAddToCart, enabled = product.stock > 0) {
+                    Text(if (product.stock > 0) "Adicionar" else "Sem estoque")
+                }
+
+                if (onViewDetails != null) {
+                    Button(onClick = onViewDetails) {
+                        Text("Detalhes")
+                    }
+                }
             }
         }
     }

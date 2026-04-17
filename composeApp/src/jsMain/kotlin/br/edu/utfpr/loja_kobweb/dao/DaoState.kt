@@ -3,6 +3,8 @@ package br.edu.utfpr.loja_kobweb.dao
 import androidx.compose.runtime.mutableStateListOf
 import br.edu.utfpr.loja_kobweb.model.Product
 import br.edu.utfpr.loja_kobweb.model.Purchase
+import br.edu.utfpr.loja_kobweb.model.User
+import br.edu.utfpr.loja_kobweb.model.UserRole
 import kotlinx.browser.window
 
 internal object DaoState {
@@ -11,8 +13,10 @@ internal object DaoState {
     val products = mutableStateListOf<Product>()
     val cart = mutableStateListOf<Product>()
     val purchases = mutableStateListOf<Purchase>()
+    val users = mutableStateListOf<User>()
     var nextProductId = 1
     var nextPurchaseId = 1
+    var nextUserId = 1
 
     init {
         resetStore()
@@ -23,10 +27,13 @@ internal object DaoState {
         products.clear()
         cart.clear()
         purchases.clear()
+        users.clear()
         nextProductId = 1
         nextPurchaseId = 1
+        nextUserId = 1
 
         seedInitialProducts()
+        seedInitialUsers()
         persist()
     }
 
@@ -71,14 +78,37 @@ internal object DaoState {
         )
     }
 
+    private fun seedInitialUsers() {
+        users.addAll(
+            listOf(
+                User(
+                    id = nextUserId++,
+                    name = "Administrador",
+                    email = "admin@loja.com",
+                    password = "Admin123",
+                    role = UserRole.ADMIN
+                ),
+                User(
+                    id = nextUserId++,
+                    name = "Cliente Demo",
+                    email = "cliente@loja.com",
+                    password = "Cliente123",
+                    role = UserRole.CUSTOMER
+                )
+            )
+        )
+    }
+
     fun persist() {
         runCatching {
             window.localStorage.setItem(STORAGE_KEY, buildString {
                 appendLine("products=${products.joinToString(";") { "${it.id}|${it.name}|${it.category}|${it.price}|${it.stock}" }}")
                 appendLine("cart=${cart.joinToString(",") { it.id.toString() }}")
                 appendLine("purchases=${purchases.joinToString(";") { "${it.id}|${it.summary}|${it.total}|${it.paymentMethod}" }}")
+                appendLine("users=${users.joinToString(";") { "${it.id}|${it.name}|${it.email}|${it.password}|${it.role.name}|${it.isActive}" }}")
                 appendLine("nextId=$nextProductId")
                 appendLine("nextPurchaseId=$nextPurchaseId")
+                appendLine("nextUserId=$nextUserId")
             })
         }
     }
