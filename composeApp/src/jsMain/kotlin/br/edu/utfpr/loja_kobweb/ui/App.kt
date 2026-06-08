@@ -37,6 +37,7 @@ import androidx.compose.ui.window.Dialog
 import br.edu.utfpr.loja_kobweb.components.CartItem
 import br.edu.utfpr.loja_kobweb.components.ProductItem
 import br.edu.utfpr.loja_kobweb.model.Purchase
+import br.edu.utfpr.loja_kobweb.store.AuthStore
 import br.edu.utfpr.loja_kobweb.store.Store
 import kotlinx.coroutines.launch
 
@@ -49,10 +50,26 @@ private enum class PaymentMethod(val label: String) {
 @Composable
 fun App() {
     MaterialTheme {
+        val currentUser = AuthStore.currentUser.value
+        
+        if (currentUser == null) {
+            var showLogin by remember { mutableStateOf(true) }
+            if (showLogin) {
+                LoginScreen(onLoginSuccess = { showLogin = false })
+            }
+        } else {
+            StoreScreen()
+        }
+    }
+}
+
+@Composable
+private fun StoreScreen() {
         val listState = rememberLazyListState()
         val coroutineScope = rememberCoroutineScope()
 
         var showCart by remember { mutableStateOf(false) }
+        var showAdminPanel by remember { mutableStateOf(false) }
         var searchText by remember { mutableStateOf("") }
         var selectedCategory by remember { mutableStateOf("Todas") }
         var onlyInStock by remember { mutableStateOf(false) }
@@ -156,16 +173,20 @@ fun App() {
                             listState.animateScrollToItem(contentItemCount - 1)
                         }
                     },
-                    onOpenCart = { showCart = true }
+                    onOpenCart = { showCart = true },
+                    onOpenAdminPanel = { showAdminPanel = true }
                 )
 
                 if (showCart) {
                     CartDialog(onDismiss = { showCart = false })
                 }
+
+                if (showAdminPanel) {
+                    AdminPanel(onClose = { showAdminPanel = false })
+                }
             }
         }
     }
-}
 
 @Composable
 private fun TopBar(
@@ -174,6 +195,7 @@ private fun TopBar(
     onGoToProducts: () -> Unit,
     onGoToPurchases: () -> Unit,
     onOpenCart: () -> Unit,
+    onOpenAdminPanel: () -> Unit,
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
@@ -186,6 +208,8 @@ private fun TopBar(
             horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            val currentUser = AuthStore.currentUser.value
+            
             Button(onClick = onGoHome) {
                 Text("Home")
             }
@@ -200,6 +224,18 @@ private fun TopBar(
 
             Button(onClick = onOpenCart) {
                 Text("Carrinho (${Store.cart.size})")
+            }
+
+            if (AuthStore.isAdmin()) {
+                Button(onClick = onOpenAdminPanel) {
+                    Text("🔧 Admin")
+                }
+            }
+
+            TextButton(onClick = {
+                AuthStore.logout()
+            }) {
+                Text("Sair (${currentUser?.email})")
             }
         }
     }

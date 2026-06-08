@@ -16,11 +16,12 @@ object Store {
     var nextPurchaseId = 1
 
     init {
-        resetStore()
+        if (!loadFromStorage()) {
+            resetStore()
+        }
     }
 
     private fun resetStore() {
-        window.localStorage.clear()
         products.clear()
         cart.clear()
         purchases.clear()
@@ -29,6 +30,75 @@ object Store {
 
         seedInitialProducts()
         persist()
+    }
+
+    private fun loadFromStorage(): Boolean {
+        return runCatching {
+            val data = window.localStorage.getItem(STORAGE_KEY) ?: return false
+            products.clear()
+            cart.clear()
+            purchases.clear()
+
+            data.split("\n").forEach { line ->
+                when {
+                    line.startsWith("products=") -> {
+                        val productsData = line.substringAfter("products=")
+                        if (productsData.isNotBlank()) {
+                            productsData.split(";").forEach { productStr ->
+                                val parts = productStr.split("|")
+                                if (parts.size == 5) {
+                                    val product = Product(
+                                        id = parts[0].toInt(),
+                                        name = parts[1],
+                                        category = parts[2],
+                                        price = parts[3].toDouble(),
+                                        stock = parts[4].toInt()
+                                    )
+                                    products.add(product)
+                                }
+                            }
+                        }
+                    }
+                    line.startsWith("cart=") -> {
+                        val cartData = line.substringAfter("cart=")
+                        if (cartData.isNotBlank()) {
+                            cartData.split(",")
+                                .mapNotNull { it.toIntOrNull() }
+                                .forEach { id -> findProductById(id)?.let { cart.add(it) } }
+                        }
+                    }
+                    line.startsWith("purchases=") -> {
+                        val purchasesData = line.substringAfter("purchases=")
+                        if (purchasesData.isNotBlank()) {
+                            purchasesData.split(";").forEach { purchaseStr ->
+                                val parts = purchaseStr.split("|")
+                                if (parts.size == 4) {
+                                    val purchase = Purchase(
+                                        id = parts[0].toInt(),
+                                        summary = parts[1],
+                                        total = parts[2].toDouble(),
+                                        paymentMethod = parts[3]
+                                    )
+                                    purchases.add(purchase)
+                                }
+                            }
+                        }
+                    }
+                    line.startsWith("nextId=") -> {
+                        nextId = line.substringAfter("nextId=").toIntOrNull() ?: nextId
+                    }
+                    line.startsWith("nextPurchaseId=") -> {
+                        nextPurchaseId = line.substringAfter("nextPurchaseId=").toIntOrNull() ?: nextPurchaseId
+                    }
+                }
+            }
+
+            if (products.isEmpty()) {
+                seedInitialProducts()
+                persist()
+            }
+            true
+        }.getOrElse { false }
     }
 
     private fun seedInitialProducts() {
@@ -137,6 +207,43 @@ object Store {
         cart.clear()
         persist()
         return purchase
+    }
+
+    // Admin functions
+    fun addProduct(name: String, category: String, price: Double, stock: Int) {
+        if (!AuthStore.isAdmin()) return
+        val newProduct = Product(
+            id = nextId++,
+            name = name,
+            category = category,
+            price = price,
+            stock = stock
+        )
+        products.add(newProduct)
+        persist()
+    }
+
+    fun updateProduct(id: Int, name: String, category: String, price: Double, stock: Int) {
+        if (!AuthStore.isAdmin()) return
+        val index = products.indexOfFirst { it.id == id }
+        if (index >= 0) {
+            products[index] = Product(
+                id = id,
+                name = name,
+                category = category,
+                price = price,
+                stock = stock
+            )
+            persist()
+        }
+    }
+
+    fun deleteProduct(id: Int) {
+        if (!AuthStore.isAdmin()) return
+        val removed = products.removeAll { it.id == id }
+        if (removed) {
+            persist()
+        }
     }
 
     private fun persist() {
