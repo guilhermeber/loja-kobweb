@@ -4,6 +4,7 @@ import androidx.compose.runtime.mutableStateListOf
 import br.edu.utfpr.loja_kobweb.model.CartLine
 import br.edu.utfpr.loja_kobweb.model.Product
 import br.edu.utfpr.loja_kobweb.model.Purchase
+import br.edu.utfpr.loja_kobweb.model.UserRole
 import kotlinx.browser.window
 
 object Store {
@@ -236,6 +237,13 @@ object Store {
             )
             persist()
         }
+    }
+
+    fun updateUserRoles(userId: Int, role: List<String>) {
+        if (!AuthStore.isAdmin()) return
+        val user = AuthStore.findUserById(userId) ?: return
+        user.role = role as UserRole
+        persist()
     }
 
     fun deleteProduct(id: Int) {

@@ -51,7 +51,7 @@ private enum class PaymentMethod(val label: String) {
 fun App() {
     MaterialTheme {
         val currentUser = AuthStore.currentUser.value
-        
+
         if (currentUser == null) {
             var showLogin by remember { mutableStateOf(true) }
             if (showLogin) {
@@ -94,16 +94,11 @@ private fun StoreScreen() {
             if (Store.purchases.isEmpty()) 1 else minOf(5, Store.purchases.size)
 
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(20.dp)
-            ) {
+            Box(modifier = Modifier.fillMaxSize()) {
                 LazyColumn(
                     state = listState,
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .widthIn(max = 1200.dp)
+                        .fillMaxSize()
                         .padding(top = 72.dp),
                     verticalArrangement = Arrangement.spacedBy(20.dp)
                 ) {

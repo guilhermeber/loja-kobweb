@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -35,6 +36,7 @@ import br.edu.utfpr.loja_kobweb.store.Store
 fun AdminPanel(onClose: () -> Unit) {
     var showAddProduct by remember { mutableStateOf(false) }
     var showEditProduct by remember { mutableStateOf<Product?>(null) }
+    var showUserRoles by remember { mutableStateOf(false)}
     var feedback by remember { mutableStateOf<String?>(null) }
 
     Dialog(onDismissRequest = onClose) {
@@ -63,6 +65,12 @@ fun AdminPanel(onClose: () -> Unit) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = { showAddProduct = true }) {
                         Text("+ Adicionar Produto")
+                    }
+                    feedback?.let {
+                        Text(it, style = MaterialTheme.typography.bodySmall)
+                    }
+                    Button(onClick = { showUserRoles = true }) {
+                        Text("+ Gerenciar Usuarios")
                     }
                     feedback?.let {
                         Text(it, style = MaterialTheme.typography.bodySmall)
@@ -97,6 +105,16 @@ fun AdminPanel(onClose: () -> Unit) {
                 Store.addProduct(name, category, price, stock)
                 showAddProduct = false
                 feedback = "Produto adicionado!"
+            }
+        )
+    }
+    if (showUserRoles) {
+        UserRolesDialog(
+            onDismiss = { showUserRoles = false },
+            onSave = { roles ->
+                Store.updateUserRoles(roles)
+                showUserRoles = false
+                feedback = "Funções de usuário atualizadas!"
             }
         )
     }
@@ -239,6 +257,55 @@ private fun AddEditProductDialog(
         }
     }
 }
+@Composable
+private fun UserRolesDialog(
+    onDismiss: () -> Unit,
+    onSave: (Set<String>) -> Unit
+) {
+    var roles by remember { mutableStateOf(Store..toMutableSet()) }
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+            tonalElevation = 8.dp,
+            modifier = Modifier.widthIn(max = 400.dp)
+        ) {
+            Column(modifier = Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Gerenciar Funções de Usuário", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+
+                val availableRoles = listOf("Admin", "Editor", "Viewer")
+                availableRoles.forEach { role ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Checkbox(
+                            checked = roles.contains(role),
+                            onCheckedChange = { isChecked ->
+                                if (isChecked) roles.add(role) else roles.remove(role)
+                            }
+                        )
+                        Text(role)
+                    }
+                }
+
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    TextButton(onClick = onDismiss, modifier = Modifier.weight(1f)) {
+                        Text("Cancelar")
+                    }
+                    Button(
+                        onClick = {
+                            onSave(roles)
+                            onDismiss()
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Salvar")
+                    }
+                }
+            }
+        }
+    }
+}
 
 private fun Double.formatMoney(): String {
     val cents = kotlin.math.round(this * 100).toLong()
@@ -246,4 +313,5 @@ private fun Double.formatMoney(): String {
     val centavos = kotlin.math.abs((cents % 100).toInt()).toString().padStart(2, '0')
     return "R$ $reais,$centavos"
 }
+
 

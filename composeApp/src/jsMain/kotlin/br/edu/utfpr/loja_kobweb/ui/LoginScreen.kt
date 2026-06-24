@@ -3,6 +3,7 @@ package br.edu.utfpr.loja_kobweb.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -40,7 +41,7 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
                 .fillMaxSize()
                 .padding(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.Top
         ) {
             Card(modifier = Modifier.widthIn(max = 400.dp)) {
                 Column(

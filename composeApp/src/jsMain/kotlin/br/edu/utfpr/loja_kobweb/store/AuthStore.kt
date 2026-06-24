@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import br.edu.utfpr.loja_kobweb.model.User
 import br.edu.utfpr.loja_kobweb.model.UserRole
 import kotlinx.browser.window
+import org.jetbrains.compose.web.css.selectors.CSSSelector.PseudoClass.active
 import kotlin.js.Date
 
 object AuthStore {
@@ -46,6 +47,7 @@ object AuthStore {
 
         val newUser = User(
             id = nextUserId++,
+            active = false,
             email = emailTrimmed,
             password = passwordTrimmed,
             role = UserRole.CUSTOMER,
@@ -91,6 +93,7 @@ object AuthStore {
     private fun seedAdminUser() {
         val adminUser = User(
             id = nextUserId++,
+            active = false,
             email = ADMIN_EMAIL,
             password = ADMIN_PASSWORD,
             role = UserRole.ADMIN,
@@ -98,6 +101,10 @@ object AuthStore {
         )
         users.add(adminUser)
         persist()
+    }
+
+    fun findUserById(id: Int): User? {
+        return users.find { it.id == id }
     }
 
     private fun persist() {
@@ -126,10 +133,11 @@ object AuthStore {
                                     try {
                                         val user = User(
                                             id = parts[0].toInt(),
-                                            email = parts[1],
-                                            password = parts[2],
-                                            role = UserRole.valueOf(parts[3]),
-                                            createdAt = parts[4].toLong()
+                                            active = parts[1].toBoolean(),
+                                            email = parts[2],
+                                            password = parts[3],
+                                            role = UserRole.valueOf(parts[4]),
+                                            createdAt = parts[5].toLong()
                                         )
                                         users.add(user)
                                         nextUserId = maxOf(nextUserId, user.id + 1)
