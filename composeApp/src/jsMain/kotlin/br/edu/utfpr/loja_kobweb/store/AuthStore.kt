@@ -13,7 +13,7 @@ object AuthStore {
     private const val ADMIN_EMAIL = "admin@utfpr.com"
     private const val ADMIN_PASSWORD = "admin123"
 
-    private val users = mutableStateListOf<User>()
+    public val users = mutableStateListOf<User>()
     var currentUser = mutableStateOf<User?>(null)
     var nextUserId = 1
 

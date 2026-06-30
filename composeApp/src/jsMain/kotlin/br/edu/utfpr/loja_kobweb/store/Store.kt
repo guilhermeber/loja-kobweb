@@ -239,10 +239,36 @@ object Store {
         }
     }
 
-    fun updateUserRoles(userId: Int, role: List<String>) {
+    // CORREÇÃO DA FUNÇÃO QUE ESTAVA TRAVANDO O SALVAMENTO
+    fun updateUserRoles(userId: Int, roleNames: List<String>) {
         if (!AuthStore.isAdmin()) return
         val user = AuthStore.findUserById(userId) ?: return
-        user.role = role as UserRole
+
+        // Verifica a primeira role selecionada na lista vinda da UI. Se estiver vazia, define um padrão.
+        val firstRoleSelected = roleNames.firstOrNull() ?: "Viewer"
+
+        // Converte a string mapeada com segurança evitando quebras de tipos complexos
+        runCatching {
+            user.role = UserRole.valueOf(firstRoleSelected.uppercase())
+        }.onFailure {
+            // Caso seu Enum UserRole use uma estrutura de escrita diferente (Ex: UserRole.Admin), ativa o plano B:
+            val fallbackRole = UserRole.values().firstOrNull {
+                it.name.equals(firstRoleSelected, ignoreCase = true)
+            }
+            if (fallbackRole != null) {
+                user.role = fallbackRole
+            }
+        }
+
+        // Força a atualização de estado do Compose na lista de usuários do AuthStore (se houver cópia)
+        val index = AuthStore.users.indexOfFirst { it.id == userId }
+        if (index >= 0) {
+            AuthStore.users[index] = user
+        }
+
+        // Se o AuthStore possuir um método próprio para persistir dados, chame-o aqui. Exemplo:
+        // AuthStore.persist()
+
         persist()
     }
 

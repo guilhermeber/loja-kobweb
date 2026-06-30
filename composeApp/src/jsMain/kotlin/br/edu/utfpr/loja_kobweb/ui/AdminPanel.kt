@@ -1,5 +1,6 @@
 package br.edu.utfpr.loja_kobweb.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,6 +17,7 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -31,6 +33,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import br.edu.utfpr.loja_kobweb.model.Product
 import br.edu.utfpr.loja_kobweb.store.Store
+// IMPORTANTE: Certifique-se de que o AuthStore está acessível para ler a lista de usuários
+import br.edu.utfpr.loja_kobweb.store.AuthStore
 
 @Composable
 fun AdminPanel(onClose: () -> Unit) {
@@ -62,18 +66,18 @@ fun AdminPanel(onClose: () -> Unit) {
 
                 HorizontalDivider()
 
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Button(onClick = { showAddProduct = true }) {
                         Text("+ Adicionar Produto")
                     }
-                    feedback?.let {
-                        Text(it, style = MaterialTheme.typography.bodySmall)
-                    }
                     Button(onClick = { showUserRoles = true }) {
-                        Text("+ Gerenciar Usuarios")
+                        Text("Gerenciar Usuários")
                     }
                     feedback?.let {
-                        Text(it, style = MaterialTheme.typography.bodySmall)
+                        Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                     }
                 }
 
@@ -108,11 +112,12 @@ fun AdminPanel(onClose: () -> Unit) {
             }
         )
     }
+
     if (showUserRoles) {
         UserRolesDialog(
             onDismiss = { showUserRoles = false },
-            onSave = { roles ->
-                Store.updateUserRoles(roles)
+            onSave = { idDoUsuario, listaDeFuncoes ->
+                Store.updateUserRoles(idDoUsuario, listaDeFuncoes)
                 showUserRoles = false
                 feedback = "Funções de usuário atualizadas!"
             }
@@ -257,35 +262,93 @@ private fun AddEditProductDialog(
         }
     }
 }
+
 @Composable
 private fun UserRolesDialog(
     onDismiss: () -> Unit,
-    onSave: (Set<String>) -> Unit
+    onSave: (Int, List<String>) -> Unit
 ) {
-    var roles by remember { mutableStateOf(Store..toMutableSet()) }
+    // Guarda qual ID de usuário foi selecionado na lista externa
+    var selectedUserId by remember { mutableStateOf<Int?>(null) }
+    var selectedRoles by remember { mutableStateOf(setOf<String>()) }
+    var error by remember { mutableStateOf<String?>(null) }
+
+    val availableRoles = listOf("Admin", "Editor", "Viewer")
+    val registeredUsers = AuthStore.users
+
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
             tonalElevation = 8.dp,
-            modifier = Modifier.widthIn(max = 400.dp)
+            modifier = Modifier.widthIn(max = 450.dp)
         ) {
-            Column(modifier = Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(modifier = Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Text("Gerenciar Funções de Usuário", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
 
-                val availableRoles = listOf("Admin", "Editor", "Viewer")
-                availableRoles.forEach { role ->
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Checkbox(
-                            checked = roles.contains(role),
-                            onCheckedChange = { isChecked ->
-                                if (isChecked) roles.add(role) else roles.remove(role)
+                Text("1. Selecione o Usuário:", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+
+                // Lista contendo os usuários cadastrados para seleção em tempo real
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 150.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    items(registeredUsers, key = { it.id }) { user ->
+                        val isSelected = selectedUserId == user.id
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { selectedUserId = user.id },
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                RadioButton(
+                                    selected = isSelected,
+                                    onClick = { selectedUserId = user.id }
+                                )
+                                Column {
+                                    Text("ID: ${user.id} | ${user.email}", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                                    Text("Funções atuais: ${user.role}", style = MaterialTheme.typography.bodySmall)
+                                }
                             }
-                        )
-                        Text(role)
+                        }
                     }
+                }
+
+                HorizontalDivider()
+
+                Text("2. Atribuir novas funções:", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    availableRoles.forEach { role ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Checkbox(
+                                checked = selectedRoles.contains(role),
+                                onCheckedChange = { isChecked ->
+                                    selectedRoles = if (isChecked) {
+                                        selectedRoles + role
+                                    } else {
+                                        selectedRoles - role
+                                    }
+                                }
+                            )
+                            Text(role, modifier = Modifier.padding(start = 8.dp))
+                        }
+                    }
+                }
+
+                error?.let {
+                    Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                 }
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
@@ -294,8 +357,13 @@ private fun UserRolesDialog(
                     }
                     Button(
                         onClick = {
-                            onSave(roles)
-                            onDismiss()
+                            val currentSelectedId = selectedUserId
+                            if (currentSelectedId == null) {
+                                error = "Você precisa selecionar um usuário na lista acima"
+                            } else {
+                                onSave(currentSelectedId, selectedRoles.toList())
+                                onDismiss()
+                            }
                         },
                         modifier = Modifier.weight(1f)
                     ) {
@@ -313,5 +381,3 @@ private fun Double.formatMoney(): String {
     val centavos = kotlin.math.abs((cents % 100).toInt()).toString().padStart(2, '0')
     return "R$ $reais,$centavos"
 }
-
-
